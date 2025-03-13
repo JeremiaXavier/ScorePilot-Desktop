@@ -56,16 +56,18 @@ const CreateAssessment = () => {
         index === cIndex ? { ...choice, text: value } : choice
       ),
     };
+    console.log("Updated Questions:", updatedQuestions); // Debugging log
     setQuestions(updatedQuestions);
   };
 
   // Set correct answer from radio selection
   const handleChoiceAnswerChange = (qIndex, cIndex) => {
     const updatedQuestions = [...questions];
-  
+
     if (updatedQuestions[qIndex].isMultiple) {
       // ✅ Allow multiple answers (toggle checkbox)
-      updatedQuestions[qIndex].choices[cIndex].isCorrect = !updatedQuestions[qIndex].choices[cIndex].isCorrect;
+      updatedQuestions[qIndex].choices[cIndex].isCorrect =
+        !updatedQuestions[qIndex].choices[cIndex].isCorrect;
     } else {
       // ✅ Only allow one correct answer (radio button behavior)
       updatedQuestions[qIndex].choices = updatedQuestions[qIndex].choices.map(
@@ -75,10 +77,9 @@ const CreateAssessment = () => {
         })
       );
     }
-  
+
     setQuestions(updatedQuestions);
   };
-  
 
   const handleAnswerChange = (qIndex, value) => {
     const updatedQuestions = [...questions];
@@ -96,13 +97,13 @@ const CreateAssessment = () => {
   // Handle form submission
   const handleSubmit = async () => {
     try {
-       const response = await axiosInstance.post(
+      const response = await axiosInstance.post(
         "/assess/create",
         { title, questions },
         {
           headers: { Authorization: `Bearer ${idToken}` },
         }
-      ); 
+      );
 
       console.log("Assessment Submitted:", questions);
       toast.success("Assessment Created Successfully!");
@@ -169,16 +170,17 @@ const CreateAssessment = () => {
                 <div>
                   <h2>Enable Multiple Answers:</h2>
                   <Switcher
-                    isChecked={q.isMultiple|| false} // ✅ Use question-specific state
+                    isChecked={q.isMultiple || false} // ✅ Use question-specific state
                     setIsChecked={() => {
-                      
                       const updatedQuestions = [...questions];
                       updatedQuestions[qIndex].isMultiple = !q.isMultiple;
-                      updatedQuestions[qIndex].choices = updatedQuestions[qIndex].choices.map(choice => ({
+                      updatedQuestions[qIndex].choices = updatedQuestions[
+                        qIndex
+                      ].choices.map((choice) => ({
                         ...choice,
                         isCorrect: false, // ✅ Reset all answers
                       }));
-                  
+
                       setQuestions(updatedQuestions);
                     }}
                   />
