@@ -10,6 +10,8 @@ import {
   ChevronRight,
   Eye,
 } from "lucide-react";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Button } from "@/components/ui/button";
 
 const ExaminationPage = () => {
   const { id } = useParams();
@@ -20,6 +22,7 @@ const ExaminationPage = () => {
   const [currentCategoryIndex, setCurrentCategoryIndex] = useState(0);
   const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
   const [timeLeft, setTimeLeft] = useState(null);
+  const [isBlinking, setIsBlinking] = useState(false);
   const navigate = useNavigate();
 
   const timerRef = useRef(null);
@@ -34,6 +37,7 @@ const ExaminationPage = () => {
     if (timeLeft > 0) {
       timerRef.current = setInterval(() => {
         setTimeLeft((prev) => prev - 1);
+        setIsBlinking((prev) => !prev);
       }, 1000);
     } else if (timeLeft === 0) {
       handleSubmitExam();
@@ -92,7 +96,7 @@ const ExaminationPage = () => {
 
         return {
           questionId,
-          isMultiple,
+          isMultiple: true,
           answerId: updatedAnswerIds,
           paragraphAnswer: "",
           type,
@@ -100,16 +104,14 @@ const ExaminationPage = () => {
       }
       return {
         questionId,
-        isMultiple,
+        isMultiple: false,
         answerId: [answerId],
         paragraphAnswer: paragraphAnswer || "",
         type,
       };
     });
   };
-
-  // ✅ Saves answer to backend when clicking "Next"
-  const handleNext = async () => {
+  const saveAnswer = async () => {
     if (localAnswer) {
       try {
         const response = await axiosInstance.post(
@@ -119,6 +121,7 @@ const ExaminationPage = () => {
         );
 
         if (response.status === 200) {
+          toast.success("Answer saved successfully");
           setAnswers(response.data.answers); // Update stored answers
           setLocalAnswer(null); // Clear only after successful save
         }
@@ -126,6 +129,10 @@ const ExaminationPage = () => {
         toast.error("Failed to save answer.");
       }
     }
+  };
+  // ✅ Saves answer to backend when clicking "Next"
+  const handleNext = async () => {
+    saveAnswer();
 
     const category = assessment?.questions[currentCategoryIndex];
     if (category && currentQuestionIndex < category.questions.length - 1) {
@@ -141,29 +148,34 @@ const ExaminationPage = () => {
     );
   };
 
+  const handleNextCategory = () => {
+    saveAnswer();
+    setCurrentCategoryIndex(currentCategoryIndex + 1); // Move to the next category
+    setCurrentQuestionIndex(0); // Start from the first question of the new category
+  };
+
   const handlePrevious = () => {
     if (currentQuestionIndex > 0) {
-      setCurrentQuestionIndex((prev) => prev - 1);
+      // Move to the previous question in the current category
+      setCurrentQuestionIndex(currentQuestionIndex - 1);
+    } else if (currentCategoryIndex > 0) {
+      // Move to the previous category and start at the last question of that category
+      setCurrentCategoryIndex(currentCategoryIndex - 1);
+      setCurrentQuestionIndex(
+        assessment.questions[currentCategoryIndex - 1].questions.length - 1
+      );
     }
   };
 
   const handleCategoryChange = (index) => {
+    saveAnswer();
     setCurrentCategoryIndex(index);
     setCurrentQuestionIndex(0); // Reset to the first question of the new category
   };
 
   const handleSubmitExam = async () => {
     try {
-      const res = await axiosInstance.post(
-        `/assess/save-answer`,
-        { ...localAnswer, testId: id, userId: authUser._id },
-        { headers: { Authorization: `Bearer ${idToken}` } }
-      );
-
-      if (res.status === 200) {
-        setAnswers(res.data.answers); // Update stored answers
-        setLocalAnswer(null); // Clear only after successful save
-      }
+      await saveAnswer();
       const payload = {
         testId: id,
         userId: authUser._id,
@@ -197,26 +209,27 @@ const ExaminationPage = () => {
   return (
     <div className="relative flex h-screen bg-gray-900 text-white">
       {/* Floating Monitoring Alert */}
-      <div className="absolute top-4 right-4 flex items-center gap-2 bg-red-600 text-white px-4 py-2 rounded-lg shadow-lg">
+      <div className={`absolute top-4 right-4 flex items-center gap-2  ${
+                  isBlinking ? "animate-blink text-white" : "bg-red-400 text-black"
+                }  px-4 py-2 rounded-lg shadow-lg`}>
         <Eye size={18} />
-        <span className="text-sm font-semibold">Monitoring Enabled</span>
+        {/* <span className={`text-sm font-semibold`}></span> */}
       </div>
 
       <div className="flex-1 flex flex-col">
         {/* Header */}
-        <header className="flex justify-around items-center p-4 bg-red-700/90 text-white shadow-lg">
+        <header className="flex justify-around items-center p-4 bg-red-700/90 text-white shadow-xl">
           <div>
-            {" "}
-            <h1 className="font-extrabold text-2xl">
-              {assessment?.assessmentTitle || "unknown"}
+            <h1 className="font-extrabold text-3xl">
+              {assessment?.assessmentTitle || "Unknown Assessment"}
             </h1>
           </div>
         </header>
 
         {/* Exam Content */}
-        <div className="flex flex-1 p-6 gap-6">
+        <div className="flex flex-1 p-4 gap-6">
           {/* Left Column - Paragraph/Image */}
-          <div className="w-1/2 bg-gray-800/60 p-6 rounded-lg shadow-lg">
+          <div className="w-1/2 bg-gray-800/60 p-6 rounded-lg shadow-lg h-full overflow-y-auto">
             {currentQuestion.imageUrl && (
               <img
                 src={currentQuestion.imageUrl}
@@ -285,7 +298,7 @@ const ExaminationPage = () => {
           </div>
 
           {/* Question Navigation Panel */}
-          <div className="w-1/5 bg-gray-900 p-4 rounded-lg shadow-xl flex flex-col justify-between gap-4">
+          <div className="w-1/5 bg-gray-900 p-4 rounded-lg shadow-xl flex flex-col justify-between gap-4 h-full overflow-y-auto">
             {/* User Info Section */}
 
             <div className="flex flex-col gap-2">
@@ -293,7 +306,11 @@ const ExaminationPage = () => {
                 Question {currentQuestionIndex + 1}/
                 {currentCategory.questions.length}
               </span>
-              <span className="flex p-3 items-center justify-center gap-2 text-lg font-bold bg-red-700">
+              <span
+                className={`flex p-3 items-center justify-center gap-2 text-lg font-bold ${
+                  isBlinking ? "animate-blink" : "bg-red-700"
+                }`}
+              >
                 ⏳ Time Left:{" "}
                 {timeLeft !== null ? (
                   <>
@@ -363,22 +380,35 @@ const ExaminationPage = () => {
             <div className="flex flex-row justify-between bg-gray-800/30 p-5 rounded-lg">
               <button
                 className="px-4 py-2 bg-gray-700 text-white rounded-lg flex items-center gap-2 disabled:opacity-50 transition hover:bg-gray-600"
-                disabled={currentQuestionIndex === 0}
+                disabled={
+                  currentCategoryIndex === 0 && currentQuestionIndex === 0
+                }
                 onClick={handlePrevious}
               >
                 <ChevronLeft size={16} /> Previous
               </button>
+
               <button
                 className="px-4 py-2 bg-blue-600 text-white rounded-lg flex items-center gap-2 transition hover:bg-blue-500"
                 onClick={
-                  currentQuestionIndex < assessment.questions.length - 1
+                  currentQuestionIndex <
+                  assessment.questions[currentCategoryIndex].questions.length -
+                    1
                     ? handleNext
+                    : currentCategoryIndex < assessment.questions.length - 1
+                    ? handleNextCategory
                     : handleSubmitExam
                 }
               >
-                {currentQuestionIndex < assessment.questions.length - 1 ? (
+                {currentQuestionIndex <
+                assessment.questions[currentCategoryIndex].questions.length -
+                  1 ? (
                   <>
                     Next <ChevronRight size={16} />
+                  </>
+                ) : currentCategoryIndex < assessment.questions.length - 1 ? (
+                  <>
+                    Next Category <ChevronRight size={16} />
                   </>
                 ) : (
                   <>

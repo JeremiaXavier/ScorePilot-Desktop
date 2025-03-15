@@ -117,3 +117,17 @@
     @apply bg-background text-foreground;
   }
 }
+
+@keyframes blink {
+  0% {
+    background-color: #0f1430; /* Red color */
+  }
+ 
+  100% {
+    background-color: #0f1430; /* Red color */
+  }
+}
+
+.animate-blink {
+  animation: blink 1s ease-in-out infinite;
+}
