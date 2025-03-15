@@ -9,8 +9,18 @@ const CreateAssessment = () => {
   const [isChecked, setIsChecked] = useState(false);
 
   const [questions, setQuestions] = useState([
-    { type: "mcq", paragraph: "", question: "", choices: ["", ""], answer: "" },
+    {
+      type: "mcq",
+      paragraph: "",
+      question: "",
+      choices: [{ text: "", isCorrect: false }, { text: "", isCorrect: false }],
+      answer: "",
+      isMultiple: false,
+      category: "",
+      image: "", // ✅ Store uploaded image URL
+    },
   ]);
+  
   const { idToken } = useAuthStore();
   const [title, setTitle] = useState("");
   // Add a new question
@@ -18,7 +28,7 @@ const CreateAssessment = () => {
     setQuestions([
       ...questions,
       type === "paragraph"
-        ? { type: "paragraph", paragraph: "", question: "", answer: "" }
+        ? { type: "paragraph", paragraph: "", question: "", answer: "",category:"",image:"" }
         : {
             type: "mcq",
             paragraph: "",
@@ -29,10 +39,35 @@ const CreateAssessment = () => {
             ],
             answer: "",
             isMultiple: false,
+            category:"",
+            image:"",
           },
     ]);
   };
-
+  const handleImageUpload = async (e, qIndex) => {
+    const file = e.target.files[0];
+    if (!file) return;
+  
+    const formData = new FormData();
+    formData.append("image", file);
+  
+    try {
+      const response = await axiosInstance.post("/upload/image", formData, {
+        headers: {
+          "Content-Type": "multipart/form-data",
+          Authorization: `Bearer ${idToken}`,
+        },
+      });
+  
+      const updatedQuestions = [...questions];
+      updatedQuestions[qIndex].image = response.data.imageUrl;
+      setQuestions(updatedQuestions);
+      toast.success("Image uploaded successfully!");
+    } catch (error) {
+      toast.error("Failed to upload image.");
+    }
+  };
+  
   // Update question text
   const handleQuestionChange = (index, value) => {
     const updatedQuestions = [...questions];
@@ -56,16 +91,18 @@ const CreateAssessment = () => {
         index === cIndex ? { ...choice, text: value } : choice
       ),
     };
+    console.log("Updated Questions:", updatedQuestions); // Debugging log
     setQuestions(updatedQuestions);
   };
 
   // Set correct answer from radio selection
   const handleChoiceAnswerChange = (qIndex, cIndex) => {
     const updatedQuestions = [...questions];
-  
+
     if (updatedQuestions[qIndex].isMultiple) {
       // ✅ Allow multiple answers (toggle checkbox)
-      updatedQuestions[qIndex].choices[cIndex].isCorrect = !updatedQuestions[qIndex].choices[cIndex].isCorrect;
+      updatedQuestions[qIndex].choices[cIndex].isCorrect =
+        !updatedQuestions[qIndex].choices[cIndex].isCorrect;
     } else {
       // ✅ Only allow one correct answer (radio button behavior)
       updatedQuestions[qIndex].choices = updatedQuestions[qIndex].choices.map(
@@ -75,10 +112,9 @@ const CreateAssessment = () => {
         })
       );
     }
-  
+
     setQuestions(updatedQuestions);
   };
-  
 
   const handleAnswerChange = (qIndex, value) => {
     const updatedQuestions = [...questions];
@@ -96,13 +132,13 @@ const CreateAssessment = () => {
   // Handle form submission
   const handleSubmit = async () => {
     try {
-       const response = await axiosInstance.post(
+      const response = await axiosInstance.post(
         "/assess/create",
         { title, questions },
         {
           headers: { Authorization: `Bearer ${idToken}` },
         }
-      ); 
+      );
 
       console.log("Assessment Submitted:", questions);
       toast.success("Assessment Created Successfully!");
@@ -169,16 +205,17 @@ const CreateAssessment = () => {
                 <div>
                   <h2>Enable Multiple Answers:</h2>
                   <Switcher
-                    isChecked={q.isMultiple|| false} // ✅ Use question-specific state
+                    isChecked={q.isMultiple || false} // ✅ Use question-specific state
                     setIsChecked={() => {
-                      
                       const updatedQuestions = [...questions];
                       updatedQuestions[qIndex].isMultiple = !q.isMultiple;
-                      updatedQuestions[qIndex].choices = updatedQuestions[qIndex].choices.map(choice => ({
+                      updatedQuestions[qIndex].choices = updatedQuestions[
+                        qIndex
+                      ].choices.map((choice) => ({
                         ...choice,
                         isCorrect: false, // ✅ Reset all answers
                       }));
-                  
+
                       setQuestions(updatedQuestions);
                     }}
                   />

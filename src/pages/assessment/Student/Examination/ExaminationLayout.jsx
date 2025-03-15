@@ -1,298 +1,456 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { axiosInstance } from "@/lib/axios.js";
 import { useAuthStore } from "@/store/auth-slice";
 import toast from "react-hot-toast";
-import MalpracticeWarning from "@/components/assessment/Malpracticewarning.jsx";
-import ExamWarningModal from "@/components/assessment/ExamwarningModel.jsx";
+import {
+  AlertCircle,
+  CheckCircle,
+  ChevronLeft,
+  ChevronRight,
+  Eye,
+} from "lucide-react";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Button } from "@/components/ui/button";
 
 const ExaminationPage = () => {
   const { id } = useParams();
-  const { authUser } = useAuthStore();
+  const { authUser, idToken } = useAuthStore();
   const [assessment, setAssessment] = useState(null);
-  const [currentQuestion, setCurrentQuestion] = useState(0);
-  const [timeLeft, setTimeLeft] = useState(1800); // 30 minutes timer
-  const [answers, setAnswers] = useState({});
-  const { idToken } = useAuthStore();
-  const [isMalpracticeDetected, setIsMalpracticeDetected] = useState(false);
-  const [isExamStarted, setIsExamStarted] = useState(false);
+  const [answers, setAnswers] = useState([]); // Stores updated answers from backend
+  const [localAnswer, setLocalAnswer] = useState(null); // Stores unsent answer
+  const [currentCategoryIndex, setCurrentCategoryIndex] = useState(0);
+  const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
+  const [timeLeft, setTimeLeft] = useState(null);
+  const [isBlinking, setIsBlinking] = useState(false);
   const navigate = useNavigate();
-  const [fullscreen, setIsFullscreen] = useState(false);
 
+  const timerRef = useRef(null);
+
+  useEffect(() => {
+    if (assessment?.timeLimit !== undefined) {
+      setTimeLeft(assessment.timeLimit * 60);
+    }
+  }, [assessment]);
+
+  useEffect(() => {
+    if (timeLeft > 0) {
+      timerRef.current = setInterval(() => {
+        setTimeLeft((prev) => prev - 1);
+        setIsBlinking((prev) => !prev);
+      }, 1000);
+    } else if (timeLeft === 0) {
+      handleSubmitExam();
+    }
+
+    return () => clearInterval(timerRef.current);
+  }, [timeLeft]);
+
+  const fetchAnswers = async () => {
+    try {
+      const res = await axiosInstance.get(
+        `/assess/answers/${id}/${authUser._id}`,
+        {
+          headers: { Authorization: `Bearer ${idToken}` },
+        }
+      );
+
+      if (res.status === 200) {
+        setAnswers(res.data.answers);
+      }
+    } catch (err) {
+      console.log(err);
+    }
+  };
   useEffect(() => {
     const fetchAssessment = async () => {
       try {
         const response = await axiosInstance.get(`/assess/s/${id}`, {
           headers: { Authorization: `Bearer ${idToken}` },
         });
+
         if (response.status === 200) {
           setAssessment(response.data);
+          fetchAnswers();
         }
       } catch (error) {
         toast.error("Failed to load assessment.");
       }
     };
-
     fetchAssessment();
   }, [id]);
 
-  const handleSubmitExam = async () => {
-    const payload = {
-      testId: assessment._id, // Assessment ID
-      userId: authUser._id, // Student ID
-      answers: answers, // Collected answers (MCQ + Paragraph)
-    };
+  // ✅ Updates local answer before sending to backend
+  const handleAnswerUpdate = (
+    questionId,
+    isMultiple,
+    answerId,
+    paragraphAnswer,
+    type
+  ) => {
+    setLocalAnswer((prev) => {
+      if (isMultiple) {
+        const updatedAnswerIds = prev?.answerId?.includes(answerId)
+          ? prev.answerId.filter((id) => id !== answerId) // Remove if already selected
+          : [...(prev?.answerId || []), answerId]; // Add new selection
 
+        return {
+          questionId,
+          isMultiple: true,
+          answerId: updatedAnswerIds,
+          paragraphAnswer: "",
+          type,
+        };
+      }
+      return {
+        questionId,
+        isMultiple: false,
+        answerId: [answerId],
+        paragraphAnswer: paragraphAnswer || "",
+        type,
+      };
+    });
+  };
+  const saveAnswer = async () => {
+    if (localAnswer) {
+      try {
+        const response = await axiosInstance.post(
+          `/assess/save-answer`,
+          { ...localAnswer, testId: id, userId: authUser._id },
+          { headers: { Authorization: `Bearer ${idToken}` } }
+        );
+
+        if (response.status === 200) {
+          toast.success("Answer saved successfully");
+          setAnswers(response.data.answers); // Update stored answers
+          setLocalAnswer(null); // Clear only after successful save
+        }
+      } catch (error) {
+        toast.error("Failed to save answer.");
+      }
+    }
+  };
+  // ✅ Saves answer to backend when clicking "Next"
+  const handleNext = async () => {
+    saveAnswer();
+
+    const category = assessment?.questions[currentCategoryIndex];
+    if (category && currentQuestionIndex < category.questions.length - 1) {
+      setCurrentQuestionIndex((prev) => prev + 1);
+    }
+  };
+
+  const isQuestionAnswered = (questionId) => {
+    return answers.some(
+      (answer) =>
+        answer.questionId === questionId &&
+        (answer.answerId.length > 0 || answer.paragraphAnswer !== "")
+    );
+  };
+
+  const handleNextCategory = () => {
+    saveAnswer();
+    setCurrentCategoryIndex(currentCategoryIndex + 1); // Move to the next category
+    setCurrentQuestionIndex(0); // Start from the first question of the new category
+  };
+
+  const handlePrevious = () => {
+    if (currentQuestionIndex > 0) {
+      // Move to the previous question in the current category
+      setCurrentQuestionIndex(currentQuestionIndex - 1);
+    } else if (currentCategoryIndex > 0) {
+      // Move to the previous category and start at the last question of that category
+      setCurrentCategoryIndex(currentCategoryIndex - 1);
+      setCurrentQuestionIndex(
+        assessment.questions[currentCategoryIndex - 1].questions.length - 1
+      );
+    }
+  };
+
+  const handleCategoryChange = (index) => {
+    saveAnswer();
+    setCurrentCategoryIndex(index);
+    setCurrentQuestionIndex(0); // Reset to the first question of the new category
+  };
+
+  const handleSubmitExam = async () => {
     try {
+      await saveAnswer();
+      const payload = {
+        testId: id,
+        userId: authUser._id,
+        answers,
+      };
+
       const response = await axiosInstance.post(`/assess/submit`, payload, {
         headers: { Authorization: `Bearer ${idToken}` },
       });
 
       if (response.status === 200) {
         toast.success("Exam submitted successfully!");
-        navigate("/assessment/s"); // Redirect after submission
+        navigate("/assessment/s");
       } else {
-        toast.error("Failed to submit exam. Try again!");
+        toast.error("Failed to submit exam.");
       }
     } catch (error) {
-      toast.error("Error submitting exam. Please check your connection.");
-      console.error("Submission error:", error);
+      toast.error("Error submitting exam.");
     }
   };
 
-  const handleExitExam = () => {
-    console.log("🔴 Exiting Fullscreen...");
-
-    if (window.electron && window.electron.toggleFullscreen) {
-      window.electron.toggleFullscreen(false);
-      setTimeout(() => {
-        navigate("/assessment/s");
-      }, 500);
-    } else {
-      console.error("❌ Electron API not available!");
-    }
-  };
-
-  /*   const enterFullscreen = () => {
-    if (document.documentElement.requestFullscreen) {
-      document.documentElement.requestFullscreen();
-      setIsFullscreen(true);
-    }
-  }; */
-
-  /* useEffect(() => {
-    if (authUser.role == "student") {
-      const handleFocusLoss = () => {
-        handleMalpractice();
-      };
-
-      const handleVisibilityChange = () => {
-        if (document.hidden) {
-          handleFocusLoss();
-        }
-      };
-
-      const handleFullscreenChange = () => {
-        if (!document.fullscreenElement) {
-          handleFocusLoss();
-        }
-      };
-
-      const handleRightClick = (event) => event.preventDefault(); // Disable right-click
-
-      window.addEventListener("blur", handleFocusLoss); // Detect switching windows
-      document.addEventListener("visibilitychange", handleVisibilityChange);
-      document.addEventListener("fullscreenchange", handleFullscreenChange);
-      document.addEventListener("contextmenu", handleRightClick); // Disable right-click
-
-      return () => {
-        window.removeEventListener("blur", handleFocusLoss);
-        document.removeEventListener(
-          "visibilitychange",
-          handleVisibilityChange
-        );
-        document.removeEventListener(
-          "fullscreenchange",
-          handleFullscreenChange
-        );
-        document.removeEventListener("contextmenu", handleRightClick);
-      };
-    } else {
-      navigate("/");
-    }
-  }, [navigate]); */
-  const handleMalpractice = () => {
-    setIsMalpracticeDetected(true); // Show the warning modal
-  };
-
-  const handleCloseModal = () => {
-    setIsMalpracticeDetected(false);
-    navigate("/student/dashboard");
-  };
-
-  const handleStartExam = () => {
-    /*   enterFullscreen(); */
-    setIsExamStarted(true);
-  };
-
-  useEffect(() => {
-    if (timeLeft <= 0) return;
-    const timer = setInterval(() => setTimeLeft(timeLeft - 1), 1000);
-    return () => clearInterval(timer);
-  }, [timeLeft]);
-
-  const handleAnswerSelect = (questionId, value, type, isMultiple = false) => {
-    setAnswers((prevAnswers) => {
-      const currentAnswers = prevAnswers[questionId] || (isMultiple ? [] : "");
-  
-      if (type === "mcq") {
-        if (isMultiple) {
-          return {
-            ...prevAnswers,
-            [questionId]: currentAnswers.includes(value)
-              ? currentAnswers.filter((choice) => choice !== value) // Remove if already selected
-              : [...currentAnswers, value], // Add new selection
-          };
-        }
-  
-        // Handle single-choice MCQ (radio)
-        return { ...prevAnswers, [questionId]: value };
-      }
-  
-      // Handle paragraph answer
-      if (type === "paragraph") {
-        return { ...prevAnswers, [questionId]: value };
-      }
-  
-      return prevAnswers;
-    });
-  };
-  
   if (!assessment) return <p>Loading...</p>;
-
-  const question = assessment.questions[currentQuestion];
+  console.log(localAnswer);
+  const currentCategory = assessment.questions[currentCategoryIndex];
+  const currentQuestion = currentCategory.questions[currentQuestionIndex];
+  const currentAnswer =
+    answers.find((ans) => ans.questionId === currentQuestion._id) ||
+    localAnswer ||
+    {};
 
   return (
-    <div className="flex flex-col h-screen">
-      {/* Header */}
-      <ExamWarningModal isOpen={!isExamStarted} onStartExam={handleStartExam} />
+    <div className="relative flex h-screen bg-gray-900 text-white">
+      {/* Floating Monitoring Alert */}
+      <div className={`absolute top-4 right-4 flex items-center gap-2  ${
+                  isBlinking ? "animate-blink text-white" : "bg-red-400 text-black"
+                }  px-4 py-2 rounded-lg shadow-lg`}>
+        <Eye size={18} />
+        {/* <span className={`text-sm font-semibold`}></span> */}
+      </div>
 
-      <MalpracticeWarning
-        isOpen={isMalpracticeDetected}
-        onClose={handleCloseModal}
-      />
+      <div className="flex-1 flex flex-col">
+        {/* Header */}
+        <header className="flex justify-around items-center p-4 bg-red-700/90 text-white shadow-xl">
+          <div>
+            <h1 className="font-extrabold text-3xl">
+              {assessment?.assessmentTitle || "Unknown Assessment"}
+            </h1>
+          </div>
+        </header>
 
-      <header className="flex justify-between items-center p-4 bg-gray-900 text-white">
-        <div className="flex items-center space-x-4">
-          <img
-            src={authUser.photoURL || "/default-avatar.png"}
-            alt="User"
-            className="w-10 h-10 rounded-full"
-          />
-          <span className="text-lg font-semibold">{authUser.fullName}</span>
-        </div>
-        <button
-          className="px-4 py-2 bg-red-600 text-white rounded"
-          onClick={handleExitExam}
-        >
-          ⬅ Back
-        </button>
-        <span className="text-xl font-bold">
-          ⏳ {Math.floor(timeLeft / 60)}:
-          {String(timeLeft % 60).padStart(2, "0")}
-        </span>
-        <span className="text-lg">
-          {question.type === "mcq" ? "MCQ" : "Paragraph"}
-        </span>
-      </header>
+        {/* Exam Content */}
+        <div className="flex flex-1 p-4 gap-6">
+          {/* Left Column - Paragraph/Image */}
+          <div className="w-1/2 bg-gray-800/60 p-6 rounded-lg shadow-lg h-full overflow-y-auto">
+            {currentQuestion.imageUrl && (
+              <img
+                src={currentQuestion.imageUrl}
+                alt="Question"
+                className="rounded-lg shadow-lg mb-4"
+              />
+            )}
+            {currentQuestion.paragraph && (
+              <div className="bg-gray-900 p-4 rounded-lg shadow-md">
+                <h2 className="font-bold text-lg text-yellow-400">
+                  📖 Read Carefully
+                </h2>
+                <p className="text-gray-300">{currentQuestion.paragraph}</p>
+              </div>
+            )}
+          </div>
 
-      {/* Main Exam Content */}
-      <div className="flex flex-1">
-        {/* Left Column */}
-        <div className="w-1/2 p-6 border-r">
-          {question.type === "mcq" && question.paragraph && (
-            <div className="bg-white p-4 rounded">
-              <h2 className="font-bold text-lg">📖 Read the Paragraph</h2>
-              <p>{question.paragraph}</p>
-            </div>
-          )}
-          {question.type === "paragraph" && (
-            <h2 className="text-2xl font-semibold">{question.question}</h2>
-          )}
-        </div>
-
-        {/* Right Column */}
-        <div className="w-1/2 p-6">
-          {question.type === "mcq" ? (
-            <div>
-              <h2 className="text-2xl font-semibold">{question.question}</h2>
-              <div className="mt-4">
-                {question.choices.map((choice, index) => (
+          {/* Right Column - Questions & Answers */}
+          <div className="w-1/2 bg-gray-800/60 p-6 rounded-lg shadow-lg">
+            <h2 className="text-2xl font-semibold mb-4 text-yellow-400">
+              {currentQuestion.question}?
+            </h2>
+            {currentQuestion.type === "mcq" ? (
+              <div className="space-y-3">
+                {currentQuestion.choices.map((choice) => (
                   <label
-                    key={index}
-                    className="block bg-white p-3 rounded cursor-pointer"
+                    key={choice._id}
+                    className="flex items-center gap-2 bg-gray-700/70 p-3 rounded-lg cursor-pointer hover:bg-gray-600 transition"
                   >
                     <input
-                      type={question.isMultiple ? "checkbox" : "radio"}
-                      name={`question_${question._id}`} // Unique name per question
+                      type={currentQuestion.isMultiple ? "checkbox" : "radio"}
+                      name={`question_${currentQuestion._id}`}
                       value={choice._id}
-                      checked={
-                        question.isMultiple
-                          ? answers[question._id]?.includes(choice._id) ?? false
-                          : answers[question._id] === choice._id
-                      }
+                      checked={currentAnswer?.answerId?.includes(choice._id)}
                       onChange={() =>
-                        handleAnswerSelect(
-                          question._id,
+                        handleAnswerUpdate(
+                          currentQuestion._id,
+                          currentQuestion.isMultiple,
                           choice._id,
-                          "mcq",
-                          question.isMultiple
+                          "",
+                          currentQuestion.type
                         )
                       }
-                      className="mr-2"
+                      className="accent-yellow-400"
                     />
-                    {choice.text}
+                    <span>{choice.text}</span>
                   </label>
                 ))}
               </div>
-            </div>
-          ) : (
-            <textarea
-              className="w-full h-40 p-3 border rounded"
-              placeholder="Type your answer here..."
-              value={answers[question._id] ?? ""} // Ensures controlled component
-              onChange={(e) =>
-                handleAnswerSelect(question._id, e.target.value, "paragraph")
-              }
-            />
-          )}
-        </div>
-      </div>
+            ) : (
+              <textarea
+                className="w-full h-40 p-3 bg-gray-700/70 border border-gray-500 rounded-lg placeholder-gray-400"
+                placeholder="Type your answer..."
+                value={currentAnswer?.paragraphAnswer || ""}
+                onChange={(e) =>
+                  handleAnswerUpdate(
+                    currentQuestion._id,
+                    false,
+                    "",
+                    e.target.value,
+                    currentQuestion.type
+                  )
+                }
+              />
+            )}
+          </div>
 
-      {/* Navigation Buttons */}
-      <footer className="flex justify-between p-4 bg-white">
-        <button
-          className="px-4 py-2 bg-gray-500 text-white rounded disabled:opacity-50"
-          disabled={currentQuestion === 0}
-          onClick={() => setCurrentQuestion(currentQuestion - 1)}
-        >
-          Previous
-        </button>
-        <button
-          className="px-4 py-2 bg-blue-600 text-white rounded"
-          onClick={() => {
-            if (currentQuestion < assessment.questions.length - 1) {
-              setCurrentQuestion(currentQuestion + 1);
-            } else {
-              handleSubmitExam();
+          {/* Question Navigation Panel */}
+          <div className="w-1/5 bg-gray-900 p-4 rounded-lg shadow-xl flex flex-col justify-between gap-4 h-full overflow-y-auto">
+            {/* User Info Section */}
+
+            <div className="flex flex-col gap-2">
+              <span className="text-lg font-bold tracking-wide">
+                Question {currentQuestionIndex + 1}/
+                {currentCategory.questions.length}
+              </span>
+              <span
+                className={`flex p-3 items-center justify-center gap-2 text-lg font-bold ${
+                  isBlinking ? "animate-blink" : "bg-red-700"
+                }`}
+              >
+                ⏳ Time Left:{" "}
+                {timeLeft !== null ? (
+                  <>
+                    {Math.floor(timeLeft / 60)}:
+                    {(timeLeft % 60).toString().padStart(2, "0")}
+                  </>
+                ) : (
+                  "Loading..."
+                )}
+              </span>
+              <div className="flex items-center gap-3 p-3 bg-gray-800 rounded-lg shadow-md mt-5">
+                <img
+                  src={authUser.photoURL}
+                  alt="User Profile"
+                  className="w-12 h-12 rounded-full border-2 border-yellow-400"
+                />
+                <div>
+                  <h3 className="text-white font-semibold">
+                    {authUser.fullName}
+                  </h3>
+                  <p className="text-sm text-gray-400">{authUser.email}</p>
+                </div>
+              </div>
+              <div className="flex flex-col gap-4">
+                {assessment.questions.map((category, index) => (
+                  <button
+                    key={category.categoryName}
+                    onClick={() => handleCategoryChange(index)}
+                    className={`w-full p-2 text-lg font-semibold rounded-lg ${
+                      currentCategoryIndex === index
+                        ? "bg-blue-500 text-white"
+                        : "bg-gray-700 text-gray-400"
+                    }`}
+                  >
+                    {category.categoryName}
+                  </button>
+                ))}
+              </div>
+              <div className="mb-20 bg-gray-800/60 p-5 rounded-lg ">
+                <h3 className="text-lg font-bold mb-2 text-yellow-400">
+                  Questions
+                </h3>
+                <div className="grid grid-cols-4 gap-2">
+                  {currentCategory.questions.map((q, index) => {
+                    const isAnswered = isQuestionAnswered(q._id);
+                    return (
+                      <button
+                        key={index}
+                        onClick={() => setCurrentQuestionIndex(index)}
+                        className={`w-10 h-10 flex items-center justify-center text-center rounded-lg transition font-semibold shadow-md ${
+                          currentQuestionIndex === index
+                            ? "bg-blue-500 text-white"
+                            : isAnswered
+                            ? "bg-green-500 text-white"
+                            : "bg-red-500 text-white"
+                        }`}
+                      >
+                        {isAnswered ? <CheckCircle size={16} /> : index + 1}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+            </div>
+
+            {/* Question Navigation */}
+            <div className="flex flex-row justify-between bg-gray-800/30 p-5 rounded-lg">
+              <button
+                className="px-4 py-2 bg-gray-700 text-white rounded-lg flex items-center gap-2 disabled:opacity-50 transition hover:bg-gray-600"
+                disabled={
+                  currentCategoryIndex === 0 && currentQuestionIndex === 0
+                }
+                onClick={handlePrevious}
+              >
+                <ChevronLeft size={16} /> Previous
+              </button>
+
+              <button
+                className="px-4 py-2 bg-blue-600 text-white rounded-lg flex items-center gap-2 transition hover:bg-blue-500"
+                onClick={
+                  currentQuestionIndex <
+                  assessment.questions[currentCategoryIndex].questions.length -
+                    1
+                    ? handleNext
+                    : currentCategoryIndex < assessment.questions.length - 1
+                    ? handleNextCategory
+                    : handleSubmitExam
+                }
+              >
+                {currentQuestionIndex <
+                assessment.questions[currentCategoryIndex].questions.length -
+                  1 ? (
+                  <>
+                    Next <ChevronRight size={16} />
+                  </>
+                ) : currentCategoryIndex < assessment.questions.length - 1 ? (
+                  <>
+                    Next Category <ChevronRight size={16} />
+                  </>
+                ) : (
+                  <>
+                    Submit <AlertCircle size={16} />
+                  </>
+                )}
+              </button>
+            </div>
+
+            {/* Navigation Controls */}
+          </div>
+        </div>
+
+        {/* Navigation Buttons */}
+        {/* <footer className="flex justify-between p-4 bg-gray-800 shadow-lg">
+          <button
+            className="px-4 py-2 bg-gray-700 text-white rounded-lg flex items-center gap-2 disabled:opacity-50 transition hover:bg-gray-600"
+            disabled={currentQuestionIndex === 0}
+            onClick={handlePrevious}
+          >
+            <ChevronLeft size={16} /> Previous
+          </button>
+          <button
+            className="px-4 py-2 bg-blue-600 text-white rounded-lg flex items-center gap-2 transition hover:bg-blue-500"
+            onClick={
+              currentQuestionIndex < assessment.questions.length - 1
+                ? handleNext
+                : handleSubmitExam
             }
-          }}
-        >
-          {currentQuestion < assessment.questions.length - 1
-            ? "Next"
-            : "Submit"}
-        </button>
-      </footer>
+          >
+            {currentQuestionIndex < assessment.questions.length - 1 ? (
+              <>
+                Next <ChevronRight size={16} />
+              </>
+            ) : (
+              <>
+                Submit <AlertCircle size={16} />
+              </>
+            )}
+          </button>
+        </footer> */}
+      </div>
     </div>
   );
 };
