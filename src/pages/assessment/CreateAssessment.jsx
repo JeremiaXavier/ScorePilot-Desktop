@@ -9,8 +9,18 @@ const CreateAssessment = () => {
   const [isChecked, setIsChecked] = useState(false);
 
   const [questions, setQuestions] = useState([
-    { type: "mcq", paragraph: "", question: "", choices: ["", ""], answer: "" },
+    {
+      type: "mcq",
+      paragraph: "",
+      question: "",
+      choices: [{ text: "", isCorrect: false }, { text: "", isCorrect: false }],
+      answer: "",
+      isMultiple: false,
+      category: "",
+      image: "", // ✅ Store uploaded image URL
+    },
   ]);
+  
   const { idToken } = useAuthStore();
   const [title, setTitle] = useState("");
   // Add a new question
@@ -18,7 +28,7 @@ const CreateAssessment = () => {
     setQuestions([
       ...questions,
       type === "paragraph"
-        ? { type: "paragraph", paragraph: "", question: "", answer: "" }
+        ? { type: "paragraph", paragraph: "", question: "", answer: "",category:"",image:"" }
         : {
             type: "mcq",
             paragraph: "",
@@ -29,10 +39,35 @@ const CreateAssessment = () => {
             ],
             answer: "",
             isMultiple: false,
+            category:"",
+            image:"",
           },
     ]);
   };
-
+  const handleImageUpload = async (e, qIndex) => {
+    const file = e.target.files[0];
+    if (!file) return;
+  
+    const formData = new FormData();
+    formData.append("image", file);
+  
+    try {
+      const response = await axiosInstance.post("/upload/image", formData, {
+        headers: {
+          "Content-Type": "multipart/form-data",
+          Authorization: `Bearer ${idToken}`,
+        },
+      });
+  
+      const updatedQuestions = [...questions];
+      updatedQuestions[qIndex].image = response.data.imageUrl;
+      setQuestions(updatedQuestions);
+      toast.success("Image uploaded successfully!");
+    } catch (error) {
+      toast.error("Failed to upload image.");
+    }
+  };
+  
   // Update question text
   const handleQuestionChange = (index, value) => {
     const updatedQuestions = [...questions];

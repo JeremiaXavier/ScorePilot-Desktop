@@ -9,7 +9,7 @@ const LandingPage = () => {
 
       {/* Text Content */}
       <h1 className="text-4xl font-bold mb-4 font-serif">
-        Welcome to Digi-Classroom Assessment Portal
+        Welcome to EDUPILOT Assessment Portal
       </h1>
       <p className="text-lg text-gray-600">
         Select an option from the sidebar to get started.
