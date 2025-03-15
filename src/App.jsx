@@ -69,6 +69,7 @@ function App() {
         <Route path="assessment/s"  element={isAuthenticated ? <StudentExamSecurityLayout /> : <Navigate to="/signin" /> }>
           <Route path="" element={<LandingPage />} />
           <Route path="view" element={<StudentAssessments />} />
+          <Route path="scoreboard" element={<StudentAssessments />} />
         </Route>
 
         {/* Exam Page */}
