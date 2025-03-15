@@ -17,31 +17,30 @@ const ExaminationPage = () => {
   const [assessment, setAssessment] = useState(null);
   const [answers, setAnswers] = useState([]); // Stores updated answers from backend
   const [localAnswer, setLocalAnswer] = useState(null); // Stores unsent answer
+  const [currentCategoryIndex, setCurrentCategoryIndex] = useState(0);
   const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
   const [timeLeft, setTimeLeft] = useState(null);
   const navigate = useNavigate();
-  const [categories, setCategories] = useState([]);
-  const [groupedQuestions, setGroupedQuestions] = useState({});
+
   const timerRef = useRef(null);
 
-useEffect(() => {
-  if (assessment?.timeLimit !== undefined) {
-    setTimeLeft(assessment.timeLimit * 60);
-  }
-}, [assessment]);
+  useEffect(() => {
+    if (assessment?.timeLimit !== undefined) {
+      setTimeLeft(assessment.timeLimit * 60);
+    }
+  }, [assessment]);
 
-useEffect(() => {
-  if (timeLeft > 0) {
-    timerRef.current = setInterval(() => {
-      setTimeLeft((prev) => prev - 1);
-    }, 1000);
-  } else if (timeLeft === 0) {
-    handleSubmitExam();
-  }
+  useEffect(() => {
+    if (timeLeft > 0) {
+      timerRef.current = setInterval(() => {
+        setTimeLeft((prev) => prev - 1);
+      }, 1000);
+    } else if (timeLeft === 0) {
+      handleSubmitExam();
+    }
 
-  return () => clearInterval(timerRef.current);
-}, [timeLeft]);
-
+    return () => clearInterval(timerRef.current);
+  }, [timeLeft]);
 
   const fetchAnswers = async () => {
     try {
@@ -76,25 +75,6 @@ useEffect(() => {
     };
     fetchAssessment();
   }, [id]);
-
-  useEffect(() => {
-    if (assessment && assessment.questions) {
-      const categoryMap = {};
-      assessment.questions.forEach((q) => {
-        const categoryId = q.category?._id || "uncategorized";
-        const categoryName = q.category?.name || "Uncategorized";
-  
-        if (!categoryMap[categoryId]) {
-          categoryMap[categoryId] = { name: categoryName, questions: [] };
-        }
-        categoryMap[categoryId].questions.push(q);
-      });
-  
-      setCategories(Object.values(categoryMap));
-      setGroupedQuestions(categoryMap);
-      fetchAnswers();
-    }
-  }, [assessment]);
 
   // ✅ Updates local answer before sending to backend
   const handleAnswerUpdate = (
@@ -147,7 +127,8 @@ useEffect(() => {
       }
     }
 
-    if (currentQuestionIndex < assessment.questions.length - 1) {
+    const category = assessment?.questions[currentCategoryIndex];
+    if (category && currentQuestionIndex < category.questions.length - 1) {
       setCurrentQuestionIndex((prev) => prev + 1);
     }
   };
@@ -164,6 +145,11 @@ useEffect(() => {
     if (currentQuestionIndex > 0) {
       setCurrentQuestionIndex((prev) => prev - 1);
     }
+  };
+
+  const handleCategoryChange = (index) => {
+    setCurrentCategoryIndex(index);
+    setCurrentQuestionIndex(0); // Reset to the first question of the new category
   };
 
   const handleSubmitExam = async () => {
@@ -201,9 +187,12 @@ useEffect(() => {
 
   if (!assessment) return <p>Loading...</p>;
   console.log(localAnswer);
-  const question = assessment.questions[currentQuestionIndex];
+  const currentCategory = assessment.questions[currentCategoryIndex];
+  const currentQuestion = currentCategory.questions[currentQuestionIndex];
   const currentAnswer =
-    answers.find((ans) => ans.questionId === question._id) || localAnswer || {};
+    answers.find((ans) => ans.questionId === currentQuestion._id) ||
+    localAnswer ||
+    {};
 
   return (
     <div className="relative flex h-screen bg-gray-900 text-white">
@@ -228,19 +217,19 @@ useEffect(() => {
         <div className="flex flex-1 p-6 gap-6">
           {/* Left Column - Paragraph/Image */}
           <div className="w-1/2 bg-gray-800/60 p-6 rounded-lg shadow-lg">
-            {question.imageUrl && (
+            {currentQuestion.imageUrl && (
               <img
-                src={question.imageUrl}
+                src={currentQuestion.imageUrl}
                 alt="Question"
                 className="rounded-lg shadow-lg mb-4"
               />
             )}
-            {question.paragraph && (
+            {currentQuestion.paragraph && (
               <div className="bg-gray-900 p-4 rounded-lg shadow-md">
                 <h2 className="font-bold text-lg text-yellow-400">
                   📖 Read Carefully
                 </h2>
-                <p className="text-gray-300">{question.paragraph}</p>
+                <p className="text-gray-300">{currentQuestion.paragraph}</p>
               </div>
             )}
           </div>
@@ -248,27 +237,27 @@ useEffect(() => {
           {/* Right Column - Questions & Answers */}
           <div className="w-1/2 bg-gray-800/60 p-6 rounded-lg shadow-lg">
             <h2 className="text-2xl font-semibold mb-4 text-yellow-400">
-              {question.question}?
+              {currentQuestion.question}?
             </h2>
-            {question.type === "mcq" ? (
+            {currentQuestion.type === "mcq" ? (
               <div className="space-y-3">
-                {question.choices.map((choice) => (
+                {currentQuestion.choices.map((choice) => (
                   <label
                     key={choice._id}
                     className="flex items-center gap-2 bg-gray-700/70 p-3 rounded-lg cursor-pointer hover:bg-gray-600 transition"
                   >
                     <input
-                      type={question.isMultiple ? "checkbox" : "radio"}
-                      name={`question_${question._id}`}
+                      type={currentQuestion.isMultiple ? "checkbox" : "radio"}
+                      name={`question_${currentQuestion._id}`}
                       value={choice._id}
                       checked={currentAnswer?.answerId?.includes(choice._id)}
                       onChange={() =>
                         handleAnswerUpdate(
-                          question._id,
-                          question.isMultiple,
+                          currentQuestion._id,
+                          currentQuestion.isMultiple,
                           choice._id,
                           "",
-                          question.type
+                          currentQuestion.type
                         )
                       }
                       className="accent-yellow-400"
@@ -284,11 +273,11 @@ useEffect(() => {
                 value={currentAnswer?.paragraphAnswer || ""}
                 onChange={(e) =>
                   handleAnswerUpdate(
-                    question._id,
+                    currentQuestion._id,
                     false,
                     "",
                     e.target.value,
-                    question.type
+                    currentQuestion.type
                   )
                 }
               />
@@ -298,10 +287,11 @@ useEffect(() => {
           {/* Question Navigation Panel */}
           <div className="w-1/5 bg-gray-900 p-4 rounded-lg shadow-xl flex flex-col justify-between gap-4">
             {/* User Info Section */}
+
             <div className="flex flex-col gap-2">
               <span className="text-lg font-bold tracking-wide">
                 Question {currentQuestionIndex + 1}/
-                {assessment.questions.length}
+                {currentCategory.questions.length}
               </span>
               <span className="flex p-3 items-center justify-center gap-2 text-lg font-bold bg-red-700">
                 ⏳ Time Left:{" "}
@@ -327,12 +317,27 @@ useEffect(() => {
                   <p className="text-sm text-gray-400">{authUser.email}</p>
                 </div>
               </div>
+              <div className="flex flex-col gap-4">
+                {assessment.questions.map((category, index) => (
+                  <button
+                    key={category.categoryName}
+                    onClick={() => handleCategoryChange(index)}
+                    className={`w-full p-2 text-lg font-semibold rounded-lg ${
+                      currentCategoryIndex === index
+                        ? "bg-blue-500 text-white"
+                        : "bg-gray-700 text-gray-400"
+                    }`}
+                  >
+                    {category.categoryName}
+                  </button>
+                ))}
+              </div>
               <div className="mb-20 bg-gray-800/60 p-5 rounded-lg ">
                 <h3 className="text-lg font-bold mb-2 text-yellow-400">
                   Questions
                 </h3>
                 <div className="grid grid-cols-4 gap-2">
-                  {assessment.questions.map((q, index) => {
+                  {currentCategory.questions.map((q, index) => {
                     const isAnswered = isQuestionAnswered(q._id);
                     return (
                       <button
