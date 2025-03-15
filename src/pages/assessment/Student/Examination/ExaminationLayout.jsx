@@ -1,8 +1,15 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { axiosInstance } from "@/lib/axios.js";
 import { useAuthStore } from "@/store/auth-slice";
 import toast from "react-hot-toast";
+import {
+  AlertCircle,
+  CheckCircle,
+  ChevronLeft,
+  ChevronRight,
+  Eye,
+} from "lucide-react";
 
 const ExaminationPage = () => {
   const { id } = useParams();
@@ -11,7 +18,31 @@ const ExaminationPage = () => {
   const [answers, setAnswers] = useState([]); // Stores updated answers from backend
   const [localAnswer, setLocalAnswer] = useState(null); // Stores unsent answer
   const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
+  const [timeLeft, setTimeLeft] = useState(null);
   const navigate = useNavigate();
+  const [categories, setCategories] = useState([]);
+  const [groupedQuestions, setGroupedQuestions] = useState({});
+  const timerRef = useRef(null);
+
+useEffect(() => {
+  if (assessment?.timeLimit !== undefined) {
+    setTimeLeft(assessment.timeLimit * 60);
+  }
+}, [assessment]);
+
+useEffect(() => {
+  if (timeLeft > 0) {
+    timerRef.current = setInterval(() => {
+      setTimeLeft((prev) => prev - 1);
+    }, 1000);
+  } else if (timeLeft === 0) {
+    handleSubmitExam();
+  }
+
+  return () => clearInterval(timerRef.current);
+}, [timeLeft]);
+
+
   const fetchAnswers = async () => {
     try {
       const res = await axiosInstance.get(
@@ -45,6 +76,25 @@ const ExaminationPage = () => {
     };
     fetchAssessment();
   }, [id]);
+
+  useEffect(() => {
+    if (assessment && assessment.questions) {
+      const categoryMap = {};
+      assessment.questions.forEach((q) => {
+        const categoryId = q.category?._id || "uncategorized";
+        const categoryName = q.category?.name || "Uncategorized";
+  
+        if (!categoryMap[categoryId]) {
+          categoryMap[categoryId] = { name: categoryName, questions: [] };
+        }
+        categoryMap[categoryId].questions.push(q);
+      });
+  
+      setCategories(Object.values(categoryMap));
+      setGroupedQuestions(categoryMap);
+      fetchAnswers();
+    }
+  }, [assessment]);
 
   // ✅ Updates local answer before sending to backend
   const handleAnswerUpdate = (
@@ -137,7 +187,7 @@ const ExaminationPage = () => {
       const response = await axiosInstance.post(`/assess/submit`, payload, {
         headers: { Authorization: `Bearer ${idToken}` },
       });
-        
+
       if (response.status === 200) {
         toast.success("Exam submitted successfully!");
         navigate("/assessment/s");
@@ -156,120 +206,215 @@ const ExaminationPage = () => {
     answers.find((ans) => ans.questionId === question._id) || localAnswer || {};
 
   return (
-    <div className="flex h-screen">
+    <div className="relative flex h-screen bg-gray-900 text-white">
+      {/* Floating Monitoring Alert */}
+      <div className="absolute top-4 right-4 flex items-center gap-2 bg-red-600 text-white px-4 py-2 rounded-lg shadow-lg">
+        <Eye size={18} />
+        <span className="text-sm font-semibold">Monitoring Enabled</span>
+      </div>
+
       <div className="flex-1 flex flex-col">
         {/* Header */}
-        <header className="flex justify-between items-center p-4 bg-gray-900 text-white">
-          <span className="text-lg font-bold">
-            Question {currentQuestionIndex + 1}/{assessment.questions.length}
-          </span>
+        <header className="flex justify-around items-center p-4 bg-red-700/90 text-white shadow-lg">
+          <div>
+            {" "}
+            <h1 className="font-extrabold text-2xl">
+              {assessment?.assessmentTitle || "unknown"}
+            </h1>
+          </div>
         </header>
 
         {/* Exam Content */}
-        <div className="flex flex-1">
-          {/* Left Column */}
-          <div className="w-1/2 p-6 border-r">
+        <div className="flex flex-1 p-6 gap-6">
+          {/* Left Column - Paragraph/Image */}
+          <div className="w-1/2 bg-gray-800/60 p-6 rounded-lg shadow-lg">
+            {question.imageUrl && (
+              <img
+                src={question.imageUrl}
+                alt="Question"
+                className="rounded-lg shadow-lg mb-4"
+              />
+            )}
             {question.paragraph && (
-              <div className="bg-white p-4 rounded">
-                <h2 className="font-bold text-lg">📖 Read the Paragraph</h2>
-                <p>{question.paragraph}</p>
+              <div className="bg-gray-900 p-4 rounded-lg shadow-md">
+                <h2 className="font-bold text-lg text-yellow-400">
+                  📖 Read Carefully
+                </h2>
+                <p className="text-gray-300">{question.paragraph}</p>
               </div>
             )}
           </div>
 
-          {/* Right Column */}
-          <div className="w-1/2 p-6 border-r">
+          {/* Right Column - Questions & Answers */}
+          <div className="w-1/2 bg-gray-800/60 p-6 rounded-lg shadow-lg">
+            <h2 className="text-2xl font-semibold mb-4 text-yellow-400">
+              {question.question}?
+            </h2>
             {question.type === "mcq" ? (
-              <div>
-                <h2 className="text-2xl font-semibold">{question.question} ?</h2>
-                <div className="mt-4">
-                  {question.choices.map((choice) => (
-                    <label
-                      key={choice._id}
-                      className="block bg-white p-3 rounded cursor-pointer"
-                    >
-                      <input
-                        type={question.isMultiple ? "checkbox" : "radio"}
-                        name={`question_${question._id}`}
-                        value={choice._id}
-                        checked={currentAnswer?.answerId?.includes(choice._id)}
-                        onChange={() =>
-                          handleAnswerUpdate(
-                            question._id,
-                            question.isMultiple,
-                            choice._id,
-                            "",
-                            question.type
-                          )
-                        }
-                      />
-                      {choice.text}
-                    </label>
-                  ))}
-                </div>
+              <div className="space-y-3">
+                {question.choices.map((choice) => (
+                  <label
+                    key={choice._id}
+                    className="flex items-center gap-2 bg-gray-700/70 p-3 rounded-lg cursor-pointer hover:bg-gray-600 transition"
+                  >
+                    <input
+                      type={question.isMultiple ? "checkbox" : "radio"}
+                      name={`question_${question._id}`}
+                      value={choice._id}
+                      checked={currentAnswer?.answerId?.includes(choice._id)}
+                      onChange={() =>
+                        handleAnswerUpdate(
+                          question._id,
+                          question.isMultiple,
+                          choice._id,
+                          "",
+                          question.type
+                        )
+                      }
+                      className="accent-yellow-400"
+                    />
+                    <span>{choice.text}</span>
+                  </label>
+                ))}
               </div>
-            ) : (<>
-            <h2 className="text-2xl font-semibold mb-3">{question.question} ?</h2>
+            ) : (
               <textarea
-                className="w-full h-40 p-3 border rounded"
-                placeholder="Type your answer here..."
+                className="w-full h-40 p-3 bg-gray-700/70 border border-gray-500 rounded-lg placeholder-gray-400"
+                placeholder="Type your answer..."
                 value={currentAnswer?.paragraphAnswer || ""}
                 onChange={(e) =>
-                  handleAnswerUpdate(question._id, false, "", e.target.value,question.type)
+                  handleAnswerUpdate(
+                    question._id,
+                    false,
+                    "",
+                    e.target.value,
+                    question.type
+                  )
                 }
-              /></>
-              
+              />
             )}
           </div>
 
           {/* Question Navigation Panel */}
-          <div className="w-1/6 p-4 bg-gray-100 border-l">
-            <h3 className="text-lg font-bold mb-2">Questions</h3>
-            <div className="grid grid-cols-3 gap-2">
-              {assessment.questions.map((q, index) => {
-                const isAnswered = isQuestionAnswered(q._id);
-                return (
-                  <button
-                    key={index}
-                    onClick={() => setCurrentQuestionIndex(index)}
-                    className={`w-10 h-10 text-center rounded ${
-                      currentQuestionIndex === index
-                        ? "bg-blue-600 text-white"
-                        : isAnswered
-                        ? "bg-green-500 text-white"
-                        : "bg-red-500 text-white"
-                    }`}
-                  >
-                    {index + 1}
-                  </button>
-                );
-              })}
+          <div className="w-1/5 bg-gray-900 p-4 rounded-lg shadow-xl flex flex-col justify-between gap-4">
+            {/* User Info Section */}
+            <div className="flex flex-col gap-2">
+              <span className="text-lg font-bold tracking-wide">
+                Question {currentQuestionIndex + 1}/
+                {assessment.questions.length}
+              </span>
+              <span className="flex p-3 items-center justify-center gap-2 text-lg font-bold bg-red-700">
+                ⏳ Time Left:{" "}
+                {timeLeft !== null ? (
+                  <>
+                    {Math.floor(timeLeft / 60)}:
+                    {(timeLeft % 60).toString().padStart(2, "0")}
+                  </>
+                ) : (
+                  "Loading..."
+                )}
+              </span>
+              <div className="flex items-center gap-3 p-3 bg-gray-800 rounded-lg shadow-md mt-5">
+                <img
+                  src={authUser.photoURL}
+                  alt="User Profile"
+                  className="w-12 h-12 rounded-full border-2 border-yellow-400"
+                />
+                <div>
+                  <h3 className="text-white font-semibold">
+                    {authUser.fullName}
+                  </h3>
+                  <p className="text-sm text-gray-400">{authUser.email}</p>
+                </div>
+              </div>
+              <div className="mb-20 bg-gray-800/60 p-5 rounded-lg ">
+                <h3 className="text-lg font-bold mb-2 text-yellow-400">
+                  Questions
+                </h3>
+                <div className="grid grid-cols-4 gap-2">
+                  {assessment.questions.map((q, index) => {
+                    const isAnswered = isQuestionAnswered(q._id);
+                    return (
+                      <button
+                        key={index}
+                        onClick={() => setCurrentQuestionIndex(index)}
+                        className={`w-10 h-10 flex items-center justify-center text-center rounded-lg transition font-semibold shadow-md ${
+                          currentQuestionIndex === index
+                            ? "bg-blue-500 text-white"
+                            : isAnswered
+                            ? "bg-green-500 text-white"
+                            : "bg-red-500 text-white"
+                        }`}
+                      >
+                        {isAnswered ? <CheckCircle size={16} /> : index + 1}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
             </div>
+
+            {/* Question Navigation */}
+            <div className="flex flex-row justify-between bg-gray-800/30 p-5 rounded-lg">
+              <button
+                className="px-4 py-2 bg-gray-700 text-white rounded-lg flex items-center gap-2 disabled:opacity-50 transition hover:bg-gray-600"
+                disabled={currentQuestionIndex === 0}
+                onClick={handlePrevious}
+              >
+                <ChevronLeft size={16} /> Previous
+              </button>
+              <button
+                className="px-4 py-2 bg-blue-600 text-white rounded-lg flex items-center gap-2 transition hover:bg-blue-500"
+                onClick={
+                  currentQuestionIndex < assessment.questions.length - 1
+                    ? handleNext
+                    : handleSubmitExam
+                }
+              >
+                {currentQuestionIndex < assessment.questions.length - 1 ? (
+                  <>
+                    Next <ChevronRight size={16} />
+                  </>
+                ) : (
+                  <>
+                    Submit <AlertCircle size={16} />
+                  </>
+                )}
+              </button>
+            </div>
+
+            {/* Navigation Controls */}
           </div>
         </div>
 
         {/* Navigation Buttons */}
-        <footer className="flex justify-between p-4 bg-white">
+        {/* <footer className="flex justify-between p-4 bg-gray-800 shadow-lg">
           <button
-            className="px-4 py-2 bg-gray-500 text-white rounded disabled:opacity-50"
+            className="px-4 py-2 bg-gray-700 text-white rounded-lg flex items-center gap-2 disabled:opacity-50 transition hover:bg-gray-600"
             disabled={currentQuestionIndex === 0}
             onClick={handlePrevious}
           >
-            Previous
+            <ChevronLeft size={16} /> Previous
           </button>
           <button
-            className="px-4 py-2 bg-blue-600 text-white rounded"
+            className="px-4 py-2 bg-blue-600 text-white rounded-lg flex items-center gap-2 transition hover:bg-blue-500"
             onClick={
               currentQuestionIndex < assessment.questions.length - 1
                 ? handleNext
                 : handleSubmitExam
             }
           >
-            {currentQuestionIndex < assessment.questions.length - 1
-              ? "Next"
-              : "Submit"}
+            {currentQuestionIndex < assessment.questions.length - 1 ? (
+              <>
+                Next <ChevronRight size={16} />
+              </>
+            ) : (
+              <>
+                Submit <AlertCircle size={16} />
+              </>
+            )}
           </button>
-        </footer>
+        </footer> */}
       </div>
     </div>
   );
