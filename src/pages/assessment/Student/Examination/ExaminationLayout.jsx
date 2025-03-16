@@ -10,8 +10,6 @@ import {
   ChevronRight,
   Eye,
 } from "lucide-react";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Button } from "@/components/ui/button";
 
 const ExaminationPage = () => {
   const { id } = useParams();
@@ -209,9 +207,11 @@ const ExaminationPage = () => {
   return (
     <div className="relative flex h-screen bg-gray-900 text-white">
       {/* Floating Monitoring Alert */}
-      <div className={`absolute top-4 right-4 flex items-center gap-2  ${
-                  isBlinking ? "animate-blink text-white" : "bg-red-400 text-black"
-                }  px-4 py-2 rounded-lg shadow-lg`}>
+      <div
+        className={`absolute top-4 right-4 flex items-center gap-2  ${
+          isBlinking ? "animate-blink text-white" : "bg-red-400 text-black"
+        }  px-4 py-2 rounded-lg shadow-lg`}
+      >
         <Eye size={18} />
         {/* <span className={`text-sm font-semibold`}></span> */}
       </div>
@@ -416,40 +416,23 @@ const ExaminationPage = () => {
                   </>
                 )}
               </button>
+              <button
+            onClick={() => {
+              if (window.electron) {
+                window.electron.exitApp(); // Exit Electron App
+              } else {
+                navigate(-1); // Navigate back in browser mode
+              }
+            }}
+            className="bg-blue-600 hover:bg-blue-700 text-white px-5 py-2 rounded-lg transition-all duration-300 shadow-md flex items-center"
+          >
+             <span className="ml-2">Exit</span>
+          </button>
             </div>
 
             {/* Navigation Controls */}
           </div>
         </div>
-
-        {/* Navigation Buttons */}
-        {/* <footer className="flex justify-between p-4 bg-gray-800 shadow-lg">
-          <button
-            className="px-4 py-2 bg-gray-700 text-white rounded-lg flex items-center gap-2 disabled:opacity-50 transition hover:bg-gray-600"
-            disabled={currentQuestionIndex === 0}
-            onClick={handlePrevious}
-          >
-            <ChevronLeft size={16} /> Previous
-          </button>
-          <button
-            className="px-4 py-2 bg-blue-600 text-white rounded-lg flex items-center gap-2 transition hover:bg-blue-500"
-            onClick={
-              currentQuestionIndex < assessment.questions.length - 1
-                ? handleNext
-                : handleSubmitExam
-            }
-          >
-            {currentQuestionIndex < assessment.questions.length - 1 ? (
-              <>
-                Next <ChevronRight size={16} />
-              </>
-            ) : (
-              <>
-                Submit <AlertCircle size={16} />
-              </>
-            )}
-          </button>
-        </footer> */}
       </div>
     </div>
   );

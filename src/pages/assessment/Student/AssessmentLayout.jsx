@@ -35,39 +35,44 @@ const StudentExamSecurityLayout = () => {
   };
 
   return (
-    <div className="w-full h-screen flex bg-gray-100">
+    <div className="w-full h-screen flex bg-gray-950 text-white">
       {/* Sidebar */}
-      <aside className="w-1/5 h-full bg-white/90 backdrop-blur-lg shadow-md border-r border-gray-200 flex flex-col justify-between p-6">
+      <aside className="w-1/5 h-full bg-gray-900/70 backdrop-blur-lg shadow-xl border-r border-gray-800 flex flex-col justify-between p-6">
         <div>
-          <div className="flex justify-center mt-11 px-10">
-            <img src={logo} alt="App Logo" className="" />
+          <div className="flex justify-center mt-8 px-10">
+            <img
+              src={logo}
+              alt="App Logo"
+              className="w-24 transition-transform duration-300 hover:scale-105"
+            />
           </div>
-          <nav className="mt-6 space-y-3">
+          <nav className="mt-10 space-y-4">
             <button
               onClick={() => navigate("/assessment/s/view")}
-              className="flex items-center py-3 px-4 rounded-lg bg-gray-100 hover:bg-gray-200 transition shadow-sm w-full"
+              className="flex items-center py-3 px-5 rounded-lg bg-gray-800/50 hover:bg-gray-700 transition-all duration-300 shadow-md w-full"
             >
-              ✏️ <span className="ml-3">Your Assessments</span>
+              ✏️ <span className="ml-3 font-medium">Your Assessments</span>
             </button>
             <button
-              onClick={() => navigate("/assessment/scoreboard")}
-              className="flex items-center py-3 px-4 rounded-lg bg-gray-100 hover:bg-gray-200 transition shadow-sm w-full"
+              onClick={() => navigate("/assessment/s/scoreboard")}
+              className="flex items-center py-3 px-5 rounded-lg bg-gray-800/50 hover:bg-gray-700 transition-all duration-300 shadow-md w-full"
             >
-              📊 <span className="ml-3">Your Performance</span>
+              📊 <span className="ml-3 font-medium">Your Performance</span>
             </button>
           </nav>
         </div>
-        <div className="flex items-center space-x-4 p-4 bg-white shadow-sm rounded-lg border">
+        <div className="flex items-center space-x-4 p-4 bg-gray-800/50 shadow-md rounded-lg border border-gray-700">
           <img
             src={authUser.photoURL || "/default-avatar.png"}
             alt="User Avatar"
-            className="w-14 h-14 rounded-full border-2 border-gray-400"
+            referrerPolicy="no-referer"
+            className="w-14 h-14 rounded-full border-2 border-gray-500 transition-transform duration-300 hover:scale-105"
           />
           <div>
-            <h1 className="text-lg font-semibold text-gray-800">
+            <h1 className="text-lg font-semibold text-gray-300">
               {authUser.fullName}
             </h1>
-            <p className="text-sm text-gray-600">{authUser.email}</p>
+            <p className="text-sm text-gray-400">{authUser.email}</p>
             <span className="text-xs font-medium text-gray-500 capitalize">
               {authUser.role}
             </span>
@@ -76,18 +81,24 @@ const StudentExamSecurityLayout = () => {
       </aside>
 
       {/* Main Content */}
-      <main className="w-4/5 h-full overflow-auto bg-gradient-to-br from-gray-50 to-white p-8">
+      <main className="w-4/5 h-full bg-gray-900 p-8">
         <div className="flex justify-end items-center mb-6">
           <button
-            onClick={() => navigate(-1)}
-            className="bg-gray-900 hover:bg-black text-white px-5 py-2 rounded-lg transition shadow-md flex items-center"
+            onClick={() => {
+              if (window.electron) {
+                window.electron.exitApp(); // Exit Electron App
+              } else {
+                navigate(-1); // Navigate back in browser mode
+              }
+            }}
+            className="bg-blue-600 hover:bg-blue-700 text-white px-5 py-2 rounded-lg transition-all duration-300 shadow-md flex items-center"
           >
-            ⬅ <span className="ml-2">Back</span>
+             <span className="ml-2">Exit</span>
           </button>
         </div>
 
         {/* Dynamic Content */}
-        <section className="bg-white p-6 ">
+        <section className="bg-gray-800/50 p-6 rounded-xl shadow-lg border border-gray-700 h-[calc(100vh-4rem)] overflow-y-auto scrollbar-hide">
           <Outlet />
         </section>
       </main>

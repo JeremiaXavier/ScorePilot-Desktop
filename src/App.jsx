@@ -16,6 +16,7 @@ import StudentExamSecurityLayout from "./pages/assessment/Student/AssessmentLayo
 import StudentAssessments from "./pages/assessment/Student/ViewAssessments.jsx";
 import ExaminationPage from "./pages/assessment/Student/Examination/ExaminationLayout.jsx";
 import WelcomeScreen from "./pages/assessment/WelcomeScreen.jsx";
+import ScoreBoard from "./pages/assessment/ScoreBoard.jsx";
 
 function App() {
   const { authUser, isAuthenticated, set } = useAuthStore();
@@ -69,7 +70,7 @@ function App() {
         <Route path="assessment/s"  element={isAuthenticated ? <StudentExamSecurityLayout /> : <Navigate to="/signin" /> }>
           <Route path="" element={<LandingPage />} />
           <Route path="view" element={<StudentAssessments />} />
-          <Route path="scoreboard" element={<StudentAssessments />} />
+          <Route path="scoreboard" element={<ScoreBoard />} />
         </Route>
 
         {/* Exam Page */}

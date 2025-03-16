@@ -4,6 +4,8 @@ import { useAuthStore } from "@/store/auth-slice";
 import { useNavigate } from "react-router-dom";
 import toast from "react-hot-toast";
 import { Button } from "@/components/ui/button";
+import { CheckCircle, Clock, BookOpen } from "lucide-react";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 
 const StudentAssessments = () => {
   const [assessments, setAssessments] = useState([]);
@@ -27,44 +29,61 @@ const StudentAssessments = () => {
 
   const handleStartExam = (assessment) => {
     console.log("🟢 Start Exam Clicked:", assessment._id);
-  
+
     if (window.electron && window.electron.toggleFullscreen) {
       console.log("📢 Switching to Fullscreen Mode...");
       window.electron.toggleFullscreen(true);
     } else {
       console.error("❌ Electron API not available!");
     }
-  
+
     navigate(`/assessment/s/start/${assessment._id}`);
   };
-  
 
   return (
-    <div className="p-6">
-      <h1 className="text-2xl font-bold mb-4">📖 Assigned Assessments</h1>
+    <div className="p-6 bg-gray-950 min-h-screen text-white">
+      <h1 className="text-3xl font-bold mb-6 text-blue-400 flex items-center">
+        📖 Your Assigned Assessments
+      </h1>
+
       {assessments.length > 0 ? (
-        <ul className=" flex space-y-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-6">
           {assessments.map((assessment) => (
-            <li
+            <Card
               key={assessment._id}
-              className="p-4 bg-white shadow-md rounded-lg cursor-pointer hover:bg-gray-100"
+              className="bg-gray-900 shadow-lg border border-gray-800 rounded-xl hover:scale-105 transition-transform duration-300"
             >
-              <h2 className="text-lg font-semibold">{assessment.title}</h2>
-              <p className="text-gray-500">
-                Created on:{" "}
-                {new Date(assessment.createdAt).toLocaleDateString()}
-              </p>
-              <Button
-                className="mt-2"
-                onClick={() => handleStartExam(assessment)}
-              >
-                Start Exam
-              </Button>
-            </li>
+              <CardHeader>
+                <CardTitle className="text-lg font-semibold flex items-center text-green-400">
+                  <BookOpen className="w-5 h-5 mr-2" /> {assessment.title}
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <p className="text-gray-400 flex items-center">
+                  <Clock className="w-4 h-4 mr-2" /> Created on:{" "}
+                  {new Date(assessment.createdAt).toLocaleDateString()}
+                </p>
+
+                {assessment.answerSubmitted ? (
+                  <div className="mt-4 flex justify-center items-center bg-green-600 text-white px-4 py-2 rounded-lg text-sm font-medium shadow-md">
+                    <CheckCircle className="w-5 h-5 mr-2" /> Submitted
+                  </div>
+                ) : (
+                  <Button
+                    className="mt-4 w-full bg-blue-600 hover:bg-blue-700 transition-all"
+                    onClick={() => handleStartExam(assessment)}
+                  >
+                    Start Exam
+                  </Button>
+                )}
+              </CardContent>
+            </Card>
           ))}
-        </ul>
+        </div>
       ) : (
-        <p className="text-gray-500">No assessments assigned yet.</p>
+        <p className="text-gray-400 text-center text-lg mt-10">
+          No assessments assigned yet.
+        </p>
       )}
     </div>
   );

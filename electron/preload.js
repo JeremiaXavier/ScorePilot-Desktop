@@ -5,4 +5,5 @@ contextBridge.exposeInMainWorld("electron", {
   toggleFullscreen: (isFullscreen) => ipcRenderer.send("toggle-fullscreen", isFullscreen),
   receive: (channel, callback) => ipcRenderer.on(channel, (event, ...args) => callback(...args)),
   removeListener: (channel) => ipcRenderer.removeAllListeners(channel),
+  exitApp: () => ipcRenderer.send("exit-app"),
 });
