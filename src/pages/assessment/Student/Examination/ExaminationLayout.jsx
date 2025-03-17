@@ -351,7 +351,7 @@ const ExaminationPage = () => {
                   </button>
                 ))}
               </div>
-              <div className="flex flex-col gap-4">
+              {/* <div className="flex flex-col gap-4  ">
                 <button
                   onClick={() => {
                     if (window.electron) {
@@ -360,11 +360,11 @@ const ExaminationPage = () => {
                       navigate(-1); // Navigate back in browser mode
                     }
                   }}
-                  className="bg-blue-600 hover:bg-blue-700 text-white px-5 py-2 rounded-lg transition-all duration-300 shadow-md flex items-center"
+                  className="bg-red-600 hover:bg-red-700 border-yellow-300 text-white px-5 py-2 rounded-lg transition-all duration-300 shadow-md flex items-center justify-center"
                 >
                   <span className="ml-2">Exit</span>
                 </button>
-              </div>
+              </div> */}
               <div className="mb-20 bg-gray-800/60 p-5 rounded-lg ">
                 <h3 className="text-lg font-bold mb-2 text-yellow-400">
                   Questions
@@ -435,6 +435,21 @@ const ExaminationPage = () => {
             </div>
 
             {/* Navigation Controls */}
+            {<div className="flex flex-col gap-4  ">
+
+                {/* <button
+                  onClick={() => {
+                    if (window.electron) {
+                      window.electron.exitApp(); // Exit Electron App
+                    } else {
+                      navigate(-1); // Navigate back in browser mode
+                    }
+                  }}
+                  className="bg-red-600 hover:bg-red-700 border-yellow-300 text-white px-5 py-2 rounded-lg transition-all duration-300 shadow-md flex items-center justify-center"
+                >
+                  <span className="ml-2">Exit</span>
+                </button> */}
+              </div>}
           </div>
         </div>
       </div>

@@ -8,8 +8,7 @@ import toast from "react-hot-toast";
 
 const SUSPENSION_THRESHOLD = 3; // Customize the threshold
 
-export default function SecurityLayout({testId,userId,children}) {
-  
+export default function SecurityLayout({ testId, userId, children }) {
   const [violationCount, setViolationCount] = useState(0);
   const [isSuspended, setIsSuspended] = useState(false);
   const { idToken } = useAuthStore();
@@ -28,8 +27,9 @@ export default function SecurityLayout({testId,userId,children}) {
       );
 
       if (res.data.isSuspended) {
+        deleteSavedAnswers();
         setIsSuspended(true);
-        deleteSavedAnswers(idToken); // Call API to delete answers
+         // Call API to delete answers
       } else {
         setViolationCount((prev) => prev + 1);
       }
@@ -39,25 +39,31 @@ export default function SecurityLayout({testId,userId,children}) {
   };
 
   // API to delete saved answers when suspended
-  const deleteSavedAnswers = async (idToken) => {
+  const deleteSavedAnswers = async () => {
     try {
       await axiosInstance.delete(`/assess/delete-answers/${userId}/${testId}`, {
         headers: { Authorization: `Bearer ${idToken}` },
       });
+      toast.error("All answers are deleted and you are suspended from examination");
     } catch (error) {
+      
       console.error("Failed to delete saved answers:", error);
     }
   };
 
   // Disable right-click and shortcuts
-    const preventCheatingKeys = (e) => {
-    if (e.ctrlKey || e.key === "F12" || e.key === "Escape") {
+  const preventCheatingKeys = (e) => {
+    if (e.key === "F12" || e.key === "Escape") {
       e.preventDefault();
       toast.error("malpractice detected");
       logMalpractice("Shortcut Key Press");
+    } else if (e.metaKey) {
+      // Log malpractice when the Meta (Windows) key is pressed
+      toast.error("Malpractice detected!");
+      logMalpractice("Meta (Windows) Key Press");
     }
   };
-    useEffect(() => {
+  useEffect(() => {
     document.addEventListener("contextmenu", (e) => e.preventDefault());
     document.addEventListener("keydown", preventCheatingKeys);
 
@@ -65,11 +71,11 @@ export default function SecurityLayout({testId,userId,children}) {
       document.removeEventListener("contextmenu", (e) => e.preventDefault());
       document.removeEventListener("keydown", preventCheatingKeys);
     };
-  }, []);  
+  }, []);
 
   return (
     <>
-     {children}
+      {children}
 
       {/* Suspension Warning Modal */}
       {isSuspended && (
@@ -88,7 +94,11 @@ export default function SecurityLayout({testId,userId,children}) {
               You are permanently suspended from this test.
             </p>
             <Button
-              onClick={() => window.electron.ipcRenderer.send("exit-app")}
+              onClick={() => {
+                if (window.electron) {
+                  window.electron.exitApp(); // Exit Electron App
+                }
+              }}
               variant="destructive"
               className="mt-6 text-lg"
             >

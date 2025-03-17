@@ -40,7 +40,7 @@ const WelcomeScreen = () => {
             
             </div>
             <p className="text-gray-300 text-sm mt-2">Powered by</p>
-            <h2 className="text-lg font-extrabold text-white">Digi-Classroom</h2>
+            <h2 className="text-lg font-extrabold text-white">EDUPILOT</h2>
           </div>
 
           {/* Status Updates */}

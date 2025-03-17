@@ -70,17 +70,18 @@ app.whenReady().then(() => {
       console.error("Error loading main app:", err);
     });
 
-     /* mainWindow.webContents.on("before-input-event", (event, input) => {
+     mainWindow.webContents.on("before-input-event", (event, input) => {
       if (
         input.key === "F12" || // DevTools
         input.key === "F5" || // Refresh
-        (input.control && input.key === "R") || // Ctrl + R
-        (input.control && input.key === "N") || // Ctrl + N (New Window)
-        (input.control && input.shift && input.key === "I") // Ctrl + Shift + I
+        (input.control && input.key.toLowerCase() === "r") || // Ctrl + R (Force Refresh)
+        (input.control && input.key.toLowerCase() === "n") || // Ctrl + N (New Window)
+        (input.control && input.shift && input.key.toLowerCase() === "i") // Ctrl + Shift + I (DevTools)
       ) {
         event.preventDefault();
       }
-    });  */
+    });
+      
     // ✅ Ensure window opens in maximized mode
     mainWindow.once("ready-to-show", () => {
       mainWindow.maximize(); // 🔹 Maximizes the window
