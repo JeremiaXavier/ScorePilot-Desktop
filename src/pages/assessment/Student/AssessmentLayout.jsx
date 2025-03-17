@@ -10,6 +10,12 @@ const StudentExamSecurityLayout = () => {
   const [isMalpracticeDetected, setIsMalpracticeDetected] = useState(false);
   const { authUser } = useAuthStore();
 
+  useEffect(() => {
+    if (authUser?.isSuspended) {
+      setIsMalpracticeDetected(true);
+    }
+  }, [authUser?.isSuspended]);
+
   // Hide cursor after inactivity
   useEffect(() => {
     let timeout;
@@ -31,7 +37,11 @@ const StudentExamSecurityLayout = () => {
 
   const handleCloseModal = () => {
     setIsMalpracticeDetected(false);
-    navigate("/assessment/s");
+    if (window.electron) {
+      window.electron.exitApp(); // Exit Electron App
+    } else {
+      navigate(-1); // Navigate back in browser mode
+    }
   };
 
   return (

@@ -8,8 +8,8 @@ import toast from "react-hot-toast";
 
 const SUSPENSION_THRESHOLD = 3; // Customize the threshold
 
-export default function SecurityLayout() {
-  const { testId, userId } = useParams();
+export default function SecurityLayout({testId,userId,children}) {
+  
   const [violationCount, setViolationCount] = useState(0);
   const [isSuspended, setIsSuspended] = useState(false);
   const { idToken } = useAuthStore();
@@ -50,15 +50,14 @@ export default function SecurityLayout() {
   };
 
   // Disable right-click and shortcuts
-  /* const preventCheatingKeys = (e) => {
+    const preventCheatingKeys = (e) => {
     if (e.ctrlKey || e.key === "F12" || e.key === "Escape") {
       e.preventDefault();
       toast.error("malpractice detected");
       logMalpractice("Shortcut Key Press");
     }
   };
- */
-/*   useEffect(() => {
+    useEffect(() => {
     document.addEventListener("contextmenu", (e) => e.preventDefault());
     document.addEventListener("keydown", preventCheatingKeys);
 
@@ -66,11 +65,11 @@ export default function SecurityLayout() {
       document.removeEventListener("contextmenu", (e) => e.preventDefault());
       document.removeEventListener("keydown", preventCheatingKeys);
     };
-  }, []); */
+  }, []);  
 
   return (
     <>
-      <Outlet />
+     {children}
 
       {/* Suspension Warning Modal */}
       {isSuspended && (

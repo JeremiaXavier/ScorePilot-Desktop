@@ -17,6 +17,7 @@ import StudentAssessments from "./pages/assessment/Student/ViewAssessments.jsx";
 import ExaminationPage from "./pages/assessment/Student/Examination/ExaminationLayout.jsx";
 import WelcomeScreen from "./pages/assessment/WelcomeScreen.jsx";
 import ScoreBoard from "./pages/assessment/ScoreBoard.jsx";
+import SecurityLayout from "./pages/assessment/Student/Examination/Security.jsx";
 
 function App() {
   const { authUser, isAuthenticated, set } = useAuthStore();
@@ -28,7 +29,6 @@ function App() {
       setIsLoading(false);
       return;
     }
-
 
     const unsubscribe = auth.onAuthStateChanged(async (user) => {
       if (user) {
@@ -66,21 +66,34 @@ function App() {
       <Routes>
         {/* Authentication Routes */}
         <Route path="/splash" element={<WelcomeScreen />} />
-        <Route path="signin" element={isAuthenticated ? <Navigate to="/" /> : <AuthLogin />} />
-        <Route path="signup" element={isAuthenticated ? <Navigate to="/" /> : <AuthRegister />} />
+        <Route
+          path="signin"
+          element={isAuthenticated ? <Navigate to="/" /> : <AuthLogin />}
+        />
+        <Route
+          path="signup"
+          element={isAuthenticated ? <Navigate to="/" /> : <AuthRegister />}
+        />
         <Route path="/" element={<CheckAuth />} />
-
-        {/* Teacher Routes */}
-      \
-        {/* Student Routes */}
-        <Route path="assessment/s"  element={isAuthenticated ? <StudentExamSecurityLayout /> : <Navigate to="/signin" /> }>
+        {/* Teacher Routes */}\{/* Student Routes */}
+        <Route
+          path="assessment/s"
+          element={
+            isAuthenticated ? (
+              <StudentExamSecurityLayout />
+            ) : (
+              <Navigate to="/signin" />
+            )
+          }
+        >
           <Route path="" element={<LandingPage />} />
           <Route path="view" element={<StudentAssessments />} />
           <Route path="scoreboard" element={<ScoreBoard />} />
         </Route>
-
         {/* Exam Page */}
-        <Route path="assessment/s/start/:id" element={<ExaminationPage />} />
+        
+          <Route path="assessment/s/start/:id" element={<ExaminationPage />} />
+        
       </Routes>
     </div>
   );

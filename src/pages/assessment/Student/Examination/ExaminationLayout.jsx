@@ -10,6 +10,7 @@ import {
   ChevronRight,
   Eye,
 } from "lucide-react";
+import SecurityLayout from "./Security";
 
 const ExaminationPage = () => {
   const { id } = useParams();
@@ -205,6 +206,7 @@ const ExaminationPage = () => {
     {};
 
   return (
+    <SecurityLayout testId={id} userId={authUser._id}>
     <div className="relative flex h-screen bg-gray-900 text-white">
       {/* Floating Monitoring Alert */}
       <div
@@ -437,6 +439,8 @@ const ExaminationPage = () => {
         </div>
       </div>
     </div>
+    </SecurityLayout>
+
   );
 };
 

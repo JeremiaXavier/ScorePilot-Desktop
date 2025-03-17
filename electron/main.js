@@ -70,7 +70,7 @@ app.whenReady().then(() => {
       console.error("Error loading main app:", err);
     });
 
-    /* mainWindow.webContents.on("before-input-event", (event, input) => {
+     /* mainWindow.webContents.on("before-input-event", (event, input) => {
       if (
         input.key === "F12" || // DevTools
         input.key === "F5" || // Refresh
@@ -80,7 +80,7 @@ app.whenReady().then(() => {
       ) {
         event.preventDefault();
       }
-    }); */
+    });  */
     // ✅ Ensure window opens in maximized mode
     mainWindow.once("ready-to-show", () => {
       mainWindow.maximize(); // 🔹 Maximizes the window
