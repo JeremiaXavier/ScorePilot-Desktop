@@ -7,36 +7,9 @@ import wallpaper from "@/assets/splash.jpg"; // New background wallpaper
 import { axiosInstance } from "@/lib/axios"; // Ensure axios is configured
 
 const WelcomeScreen = () => {
-  const [status, setStatus] = useState("Checking server connectivity...");
   const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
-    const checkServer = async () => {
-      try {
-        await new Promise((resolve) => setTimeout(resolve, 1000)); // Simulate delay
-        setStatus("Connecting to server...");
-        await axiosInstance.get("/health"); // API health check
-
-        setStatus("Server connected successfully ✅");
-        await new Promise((resolve) => setTimeout(resolve, 1000)); // Simulate delay
-
-        setStatus("Loading resources...");
-        await new Promise((resolve) => setTimeout(resolve, 1000)); // Simulate delay
-
-        setStatus("Initialization complete! Redirecting...");
-        setLoading(false);
-
-        setTimeout(() => {
-          window.location.href = "/"; // Redirect after 1.5s
-        }, 1500);
-      } catch (error) {
-        setStatus("❌ Server connection failed. Retrying...");
-        setTimeout(checkServer, 3000); // Retry after 3 sec
-      }
-    };
-
-    checkServer();
-  }, []);
+  
 
   return (
     <div

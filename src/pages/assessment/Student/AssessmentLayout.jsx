@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from "react";
 import { Outlet, useNavigate } from "react-router-dom";
-import logo from "../../../assets/imagez.png";
+import logo from "../../../assets/image.png";
 import MalpracticeWarning from "@/components/assessment/Malpracticewarning";
 import { useAuthStore } from "@/store/auth-slice";
 
@@ -39,11 +39,11 @@ const StudentExamSecurityLayout = () => {
       {/* Sidebar */}
       <aside className="w-1/5 h-full bg-gray-900/70 backdrop-blur-lg shadow-xl border-r border-gray-800 flex flex-col justify-between p-6">
         <div>
-          <div className="flex justify-center mt-8 px-10">
+          <div className="flex justify-center mt-8 px-4">
             <img
               src={logo}
               alt="App Logo"
-              className="w-24 transition-transform duration-300 hover:scale-105"
+              className="w-full transition-transform duration-300 hover:scale-105"
             />
           </div>
           <nav className="mt-10 space-y-4">

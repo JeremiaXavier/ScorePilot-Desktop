@@ -24,6 +24,12 @@ function App() {
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
+    if (location.pathname === "/splash") {
+      setIsLoading(false);
+      return;
+    }
+
+
     const unsubscribe = auth.onAuthStateChanged(async (user) => {
       if (user) {
         const token = await user.getIdToken(true);
